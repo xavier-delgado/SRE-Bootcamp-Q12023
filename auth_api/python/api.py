@@ -1,5 +1,5 @@
 from flask import Flask
-from flask import jsonify
+from flask import jsonify, abort
 from flask import request
 from methods import Token, Restricted
 
@@ -25,9 +25,16 @@ def url_health():
 def url_login():
     username = request.form['username']
     password = request.form['password']
+
+    token = login.generate_token(username, password)
+
+    if token is None:
+        abort(403)
+
     res = {
-        "data": login.generate_token(username, password)
+        "data": token
     }
+
     return jsonify(res)
 
 
@@ -40,6 +47,9 @@ def url_protected():
     }
     return jsonify(res)
 
+@app.errorhandler(403)
+def forbid(e):
+    return jsonify(error=str(e)), 403
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
