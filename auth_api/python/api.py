@@ -42,13 +42,22 @@ def url_login():
 @app.route("/protected")
 def url_protected():
     auth_token = request.headers.get('Authorization')
+
+    jwt = auth_token.split()
+
+    response = protected.access_data(jwt[1])
+
+    if response is None:
+        abort(403)
+
     res = {
-        "data": protected.access_data(auth_token)
+        "data": response
     }
+
     return jsonify(res)
 
 @app.errorhandler(403)
-def forbid(e):
+def forbidden(e):
     return jsonify(error=str(e)), 403
 
 if __name__ == '__main__':
