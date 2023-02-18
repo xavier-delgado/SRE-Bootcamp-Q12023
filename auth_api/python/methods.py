@@ -1,7 +1,6 @@
 import mysql.connector
 import hashlib
 from os import environ
-import base64
 import jwt
 
 # These functions need to be implemented
@@ -11,27 +10,33 @@ class Token:
 
         cnx = get_db_connection()
 
-        cursor = cnx.cursor()
+        if cnx:
 
-        query = ("SELECT password, salt, role FROM users WHERE username = '{}'".format(username))
+            cursor = cnx.cursor()
 
-        cursor.execute(query)
+            query = ("SELECT password, salt, role FROM users WHERE username = '{}'".format(username))
 
-        encrypted_password, salt, role = cursor.fetchone()
+            cursor.execute(query)
 
-        cursor.close()
-        cnx.close()
+            try:
+                encrypted_password, salt, role = cursor.fetchone()
+                salted_password = "{}{}".format(password, salt)
 
-        salted_password = "{}{}".format(password, salt)
+                hashed_password = hashlib.sha512(salted_password.encode()).hexdigest()
 
-        hashed_password = hashlib.sha512(salted_password.encode()).hexdigest()
+                if hashed_password == encrypted_password:
+                    payload_data = {
+                        "role": role
+                    }
 
-        if hashed_password == encrypted_password:
-            payload_data = {
-                "role": role
-            }
-
-            token = jwt.encode(payload_data, environ.get("SECRET"), algorithm = "HS256")
+                    token = jwt.encode(payload_data, environ.get("SECRET"), algorithm = "HS256")
+                else:
+                    token = None
+            except:
+                token =  None
+            
+            cursor.close()
+            cnx.close()
         else:
             token = None
 
@@ -43,24 +48,28 @@ class Restricted:
 
         cnx = get_db_connection()
 
-        cursor = cnx.cursor()
+        if cnx:
 
-        query = ("SELECT role FROM users")
+            cursor = cnx.cursor()
 
-        cursor.execute(query)
+            query = ("SELECT role FROM users")
 
-        roles = [role[0] for role in cursor.fetchall()]
+            cursor.execute(query)
 
-        cursor.close()
-        cnx.close()
+            roles = [role[0] for role in cursor.fetchall()]
 
-        try:
-            role = jwt.decode(authorization, environ.get("SECRET"), algorithms=["HS256"])
-            if role["role"] in roles:
-                return "You are under protected data"
-            else:
+            cursor.close()
+            cnx.close()
+
+            try:
+                role = jwt.decode(authorization, environ.get("SECRET"), algorithms=["HS256"])
+                if role["role"] in roles:
+                    return "You are under protected data"
+                else:
+                    return None
+            except:
                 return None
-        except:
+        else:
             return None
 
 
